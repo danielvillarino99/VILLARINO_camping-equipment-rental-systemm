@@ -17,12 +17,13 @@ public class Authentication {
     public void handleRegister() {
         System.out.println("\n--- REGISTER ACCOUNT ---");
         System.out.print("Enter username: ");
-        String username = scanner.nextLine();
+        String username = scanner.nextLine().trim();
         System.out.print("Enter password: ");
-        String password = scanner.nextLine();
+        String password = scanner.nextLine().trim();
         System.out.println("Select Role: 1. Store Manager | 2. Rental Desk Clerk | 3. Inventory Auditor");
+        System.out.print("Choose role option: ");
 
-        String roleInput = scanner.nextLine();
+        String roleInput = scanner.nextLine().trim();
         int roleChoice = 2;
         try {
             roleChoice = Integer.parseInt(roleInput);
@@ -46,9 +47,9 @@ public class Authentication {
     public user handleLogin() {
         System.out.println("\n--- LOGIN ---");
         System.out.print("Enter username: ");
-        String username = scanner.nextLine();
+        String username = scanner.nextLine().trim();
         System.out.print("Enter password: ");
-        String password = scanner.nextLine();
+        String password = scanner.nextLine().trim();
 
         user u = userDaoObj.loginUser(username, password);
         if (u != null) {

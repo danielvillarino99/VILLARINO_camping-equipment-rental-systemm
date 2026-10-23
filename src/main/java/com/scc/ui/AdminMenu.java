@@ -7,103 +7,98 @@ import java.util.List;
 import java.util.Scanner;
 
 public class AdminMenu {
-    private static final UserDao userDaoObj = new UserDao();
-    private static final Scanner scanner = new Scanner(System.in);
 
     public static void displayAdminMenu() {
+        UserDao userDaoObj = new UserDao();
+        Scanner scanner = new Scanner(System.in);
+
         while (true) {
-            System.out.println("\n==================================================");
-            System.out.println("            STORE MANAGER MANAGEMENT MENU         ");
-            System.out.println("==================================================");
+            System.out.println("\n=== ADMIN MANAGEMENT MENU ===");
             System.out.println("1. View All System Users");
             System.out.println("2. View Pending Registrations");
             System.out.println("3. Approve User Account");
-            System.out.println("4. Logout / Return to Main Menu");
-            System.out.print("Choose an option: ");
+            System.out.println("4. Exit Admin Menu");
+            System.out.print("Choose option: ");
 
-            String input = scanner.nextLine();
+            String input = scanner.nextLine().trim();
             int choice;
             try {
                 choice = Integer.parseInt(input);
             } catch (NumberFormatException e) {
-                System.out.println("Invalid input. Please enter a number (1-4).");
+                System.out.println("Invalid choice. Please enter a number.");
                 continue;
             }
 
             switch (choice) {
-                case 1 -> viewAllUsers();
-                case 2 -> viewPendingUsers();
-                case 3 -> approveUserAccount();
+                case 1 -> {
+                    List<user> allUsers = userDaoObj.getAllUsers();
+                    printUserTable("ALL REGISTERED USERS", allUsers);
+                }
+                case 2 -> {
+                    List<user> pendingUsers = userDaoObj.getPendingUsers();
+                    printUserTable("PENDING REGISTRATIONS", pendingUsers);
+                }
+                case 3 -> {
+                    List<user> pendingUsers = userDaoObj.getPendingUsers();
+                    printUserTable("PENDING REGISTRATIONS", pendingUsers);
+
+                    if (pendingUsers.isEmpty()) {
+                        System.out.println("No accounts currently pending approval.");
+                        break;
+                    }
+
+                    System.out.print("\nEnter Target User ID to approve (or enter 0 to cancel): ");
+                    String idInput = scanner.nextLine().trim();
+                    int targetId;
+                    try {
+                        targetId = Integer.parseInt(idInput);
+                    } catch (NumberFormatException e) {
+                        System.out.println("Invalid ID format. Operation canceled.");
+                        break;
+                    }
+
+                    if (targetId == 0) {
+                        System.out.println("Approval operation canceled.");
+                        break;
+                    }
+
+                    boolean existsInPending = pendingUsers.stream().anyMatch(u -> u.user_id() == targetId);
+                    if (!existsInPending) {
+                        System.out.println("Error: User ID " + targetId + " is not in the pending list.");
+                    } else {
+                        boolean approved = userDaoObj.approveUser(targetId);
+                        if (approved) {
+                            System.out.println("SUCCESS: User ID " + targetId + " has been APPROVED!");
+                        } else {
+                            System.out.println("Failed to update user status.");
+                        }
+                    }
+                }
                 case 4 -> {
-                    System.out.println("Logging out from Store Manager menu...");
+                    System.out.println("Exiting Admin Menu...");
                     return;
                 }
-                default -> System.out.println("Invalid choice. Please choose between 1 and 4.");
+                default -> System.out.println("Invalid option. Choose between 1 and 4.");
             }
         }
     }
 
-    private static void viewAllUsers() {
-        List<user> users = userDaoObj.getAllUsers();
-        printUserTable(users, "ALL SYSTEM USERS");
-    }
-
-    private static void viewPendingUsers() {
-        List<user> users = userDaoObj.getPendingUsers();
-        printUserTable(users, "PENDING REGISTRATIONS");
-    }
-
-    private static void approveUserAccount() {
-        List<user> pendingUsers = userDaoObj.getPendingUsers();
-        if (pendingUsers.isEmpty()) {
-            System.out.println("\nNo pending user accounts to approve.");
-            return;
-        }
-
-        printUserTable(pendingUsers, "PENDING ACCOUNTS");
-        System.out.print("Enter User ID to APPROVE (or enter 0 to cancel): ");
-
-        String input = scanner.nextLine();
-        try {
-            int userId = Integer.parseInt(input);
-            if (userId == 0) {
-                System.out.println("Approval action cancelled.");
-                return;
-            }
-
-            boolean exists = pendingUsers.stream().anyMatch(u -> u.user_id() == userId);
-            if (!exists) {
-                System.out.println("Invalid User ID or user is not in the pending list.");
-                return;
-            }
-
-            boolean success = userDaoObj.approveUser(userId);
-            if (success) {
-                System.out.println("Success! User ID " + userId + " status has been updated to 'APPROVED'.");
-            } else {
-                System.out.println("Failed to approve user account.");
-            }
-        } catch (NumberFormatException e) {
-            System.out.println("Invalid input. Please enter a valid numeric User ID.");
-        }
-    }
-
-    private static void printUserTable(List<user> users, String title) {
+    // Formatted Console Output using standard string formatters (%-5s, %-15s, %-20s, %-10s)
+    private static void printUserTable(String title, List<user> userList) {
         System.out.println("\n--- " + title + " ---");
-        if (users.isEmpty()) {
+        if (userList.isEmpty()) {
             System.out.println("No records found.");
             return;
         }
 
-        String format = "| %-6s | %-15s | %-28s | %-10s |%n";
-        String border = "+--------+-----------------+------------------------------+------------+";
-
+        String border = "+-------+-----------------+----------------------+------------+";
         System.out.println(border);
-        System.out.printf(format, "ID", "Username", "Role", "Status");
+        System.out.printf("| %-5s | %-15s | %-20s | %-10s |\n", "ID", "Username", "Role", "Status");
         System.out.println(border);
 
-        for (user u : users) {
-            System.out.printf(format, u.user_id(), u.username(), u.role(), u.status());
+        for (user u : userList) {
+            System.out.printf("| %-5d | %-15s | %-20s | %-10s |\n",
+                    u.user_id(), u.username(), u.role(), u.status());
         }
         System.out.println(border);
     }

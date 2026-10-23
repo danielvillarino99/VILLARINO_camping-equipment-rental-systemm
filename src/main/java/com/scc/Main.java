@@ -1,23 +1,25 @@
 package com.scc;
 
-import com.scc.dao.DatabaseConnection;
+import com.scc.dao.DatabaseInitializer;
 import com.scc.dao.UserDao;
 import com.scc.model.user;
 import com.scc.ui.AdminMenu;
 import com.scc.ui.Authentication;
 
-import java.sql.Connection;
-import java.sql.Statement;
 import java.util.Scanner;
 
 public class Main {
     public static void main(String[] args) {
-        initializeDatabase();
+        // 1. Initialize Database using your DatabaseInitializer class
+        DatabaseInitializer.initializeDatabase();
 
+        // 2. Instantiate shared DAO and Scanner resources
         UserDao userDaoObj = new UserDao();
         Scanner scanner = new Scanner(System.in);
-        Authentication auth = new Authentication(userDaoObj, scanner);
+        UserDao UserDaoObj = new UserDao();
+        Authentication auth = new Authentication(UserDaoObj, scanner);
 
+        // 3. Main execution loop
         while (true) {
             System.out.println("\n=== CAMPING EQUIPMENT RENTAL SYSTEM ===");
             System.out.println("1. Register Account");
@@ -51,27 +53,8 @@ public class Main {
         }
     }
 
-    private static void initializeDatabase() {
-        String createUsersTable = """
-            CREATE TABLE IF NOT EXISTS users (
-                user_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                role TEXT NOT NULL,
-                status TEXT NOT NULL
-            );
-        """;
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             Statement stmt = conn.createStatement()) {
-            stmt.execute("PRAGMA foreign_keys = ON;");
-            stmt.execute(createUsersTable);
-        } catch (Exception e) {
-            System.out.println("Table initialization error: " + e.getMessage());
-        }
-    }
-
     private static void userSession(user u) {
+        // Route Store Manager directly to the Admin Menu
         if ("Store Manager".equals(u.role())) {
             AdminMenu.displayAdminMenu();
             return;
