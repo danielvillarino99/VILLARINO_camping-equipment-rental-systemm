@@ -81,7 +81,7 @@ public class Authentication {
         boolean success = userDaoObj.registerUser(username, password, role);
         if (success) {
             if ("System Admin".equalsIgnoreCase(role)) {
-                System.out.println("Registration successful! System Admin account is automatically APPROVED.");
+                System.out.println("Registration successful! System Admin account is  APPROVED.");
             } else {
                 System.out.println("Registration successful! Account status is PENDING approval.");
             }
