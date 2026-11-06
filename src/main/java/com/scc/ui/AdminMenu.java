@@ -9,159 +9,46 @@ import java.util.List;
 import java.util.Scanner;
 
 public class AdminMenu {
-    private static final ActivityLogDao logDao = new ActivityLogDao();
+    private static final ActivityLogDao activityLogDao = new ActivityLogDao();
 
-    public static void displayAdminMenu(user currentUser, UserDao userDaoObj, Scanner scanner) {
+    public static void displayAdminMenu(user currentAdmin, UserDao userDaoObj, Scanner scanner) {
         while (true) {
-            System.out.println("\n=== ADMIN MANAGEMENT MENU ===");
-            System.out.println("1. View All System Users");
-            System.out.println("2. View Pending Registrations");
-            System.out.println("3. Approve User Account");
-            System.out.println("4. Update User Role and Status");
+            System.out.println("\n===================================");
+            System.out.println("=== SYSTEM ADMINISTRATOR MENU ===");
+            System.out.println("=====================================");
+            System.out.println("1. View All Users");
+            System.out.println("2. View Pending Users");
+            System.out.println("3. Approve User");
+            System.out.println("4. Update User Role & Status");
             System.out.println("5. View System Audit Logs");
-            System.out.println("6. Exit Admin Menu");
-            System.out.print("Choose option: ");
+            System.out.println("6. Logout");
+            System.out.print("Choose an option: ");
 
-            String input = scanner.nextLine().trim();
-            int choice;
-            try {
-                choice = Integer.parseInt(input);
-            } catch (NumberFormatException e) {
-                System.out.println("Invalid choice. Please enter a number.");
-                continue;
-            }
+            int choice = readIntInput(scanner, "");
 
             switch (choice) {
-                case 1 -> {
-                    List<user> allUsers = userDaoObj.getAllUsers();
-                    printUserTable("ALL REGISTERED USERS", allUsers);
-                }
-                case 2 -> {
-                    List<user> pendingUsers = userDaoObj.getPendingUsers();
-                    printUserTable("PENDING REGISTRATIONS", pendingUsers);
-                }
-                case 3 -> {
-                    List<user> pendingUsers = userDaoObj.getPendingUsers();
-                    printUserTable("PENDING REGISTRATIONS", pendingUsers);
-
-                    if (pendingUsers.isEmpty()) {
-                        System.out.println("No accounts currently pending approval.");
-                        break;
-                    }
-
-                    int targetId = readIntInput(scanner, "\nEnter Target User ID to approve (or enter 0 to cancel): ");
-                    if (targetId == 0) {
-                        System.out.println("Approval operation canceled.");
-                        break;
-                    }
-
-                    boolean existsInPending = pendingUsers.stream().anyMatch(u -> u.user_id() == targetId);
-                    if (!existsInPending) {
-                        System.out.println("Error: User ID " + targetId + " is not in the pending list.");
-                    } else {
-                        boolean approved = userDaoObj.approveUser(currentUser.user_id(), targetId);
-                        if (approved) {
-                            System.out.println("SUCCESS: User ID " + targetId + " has been APPROVED!");
-                        } else {
-                            System.out.println("Failed to update user status.");
-                        }
-                    }
-                }
-                case 4 -> updateUserRoleAndStatus(currentUser, userDaoObj, scanner);
-                case 5 -> handleAuditLogsMenu(scanner);
+                case 1 -> displayAllUsers(userDaoObj);
+                case 2 -> displayPendingUsers(userDaoObj);
+                case 3 -> handleApproveUser(currentAdmin, userDaoObj, scanner);
+                case 4 -> handleUpdateUser(currentAdmin, userDaoObj, scanner);
+                case 5 -> handleViewAuditLogsMenu(scanner);
                 case 6 -> {
-                    System.out.println("Exiting Admin Menu...");
+                    System.out.println("Logging out from Admin session.");
                     return;
                 }
-                default -> System.out.println("Invalid option. Choose between 1 and 6.");
+                default -> System.out.println("Invalid choice. Please choose between 1 and 6.");
             }
-        }
-    }
-
-    private static void handleAuditLogsMenu(Scanner scanner) {
-        while (true) {
-            System.out.println("\n--- SYSTEM AUDIT LOGS ---");
-            System.out.println("[1] View All System Logs");
-            System.out.println("[2] Filter Logs by User ID");
-            System.out.println("[3] Clear All Logs");
-            System.out.println("[4] Back to Admin Menu");
-            System.out.print("Choose option: ");
-
-            String input = scanner.nextLine().trim();
-            int choice;
-            try {
-                choice = Integer.parseInt(input);
-            } catch (NumberFormatException e) {
-                System.out.println("Invalid input. Please enter a number (1-4).");
-                continue;
-            }
-
-            switch (choice) {
-                case 1 -> {
-                    List<ActivityLog> logs = logDao.getAllLogs();
-                    printLogTable("ALL SYSTEM AUDIT LOGS", logs);
-                }
-                case 2 -> {
-                    int targetUserId = readIntInput(scanner, "Enter User ID to filter logs: ");
-                    List<ActivityLog> filteredLogs = logDao.getLogsByUserId(targetUserId);
-                    printLogTable("LOGS FOR USER ID: " + targetUserId, filteredLogs);
-                }
-                case 3 -> {
-                    System.out.print("Are you sure you want to clear all history? (y/n): ");
-                    String confirm = scanner.nextLine().trim();
-                    if (confirm.equalsIgnoreCase("y")) {
-                        logDao.clearLogs();
-                        System.out.println("Audit logs cleared successfully.");
-                    } else {
-                        System.out.println("Operation cancelled.");
-                    }
-                }
-                case 4 -> {
-                    return;
-                }
-                default -> System.out.println("Invalid option. Choose between 1 and 4.");
-            }
-        }
-    }
-
-    private static void updateUserRoleAndStatus(user currentUser, UserDao userDaoObj, Scanner scanner) {
-        List<user> allUsers = userDaoObj.getAllUsers();
-        printUserTable("ALL REGISTERED USERS", allUsers);
-
-        int targetId = readIntInput(scanner, "Enter User ID to UPDATE (or enter 0 to cancel): ");
-        if (targetId == 0) {
-            System.out.println("Update action cancelled.");
-            return;
-        }
-
-        if (targetId == currentUser.user_id()) {
-            System.out.println("WARNING: Modifying the currently active admin account is restricted.");
-            return;
-        }
-
-        boolean exists = allUsers.stream().anyMatch(u -> u.user_id() == targetId);
-        if (!exists) {
-            System.out.println("Invalid User ID. User does not exist.");
-            return;
-        }
-
-        String newRole = readValidRole(scanner);
-        String newStatus = readValidStatus(scanner);
-
-        boolean success = userDaoObj.updateUserRoleAndStatus(currentUser.user_id(), targetId, newRole, newStatus);
-        if (success) {
-            System.out.println("SUCCESS: User ID " + targetId + " updated to Role: " + newRole + ", Status: " + newStatus);
-        } else {
-            System.out.println("Failed to update user account.");
         }
     }
 
     private static int readIntInput(Scanner scanner, String prompt) {
         while (true) {
-            System.out.print(prompt);
-            String input = scanner.nextLine().trim();
+            if (!prompt.isEmpty()) {
+                System.out.print(prompt);
+            }
+            String input = scanner.nextLine();
             try {
-                return Integer.parseInt(input);
+                return Integer.parseInt(input.trim());
             } catch (NumberFormatException e) {
                 System.out.println("Invalid input. Please enter a valid number.");
             }
@@ -170,8 +57,10 @@ public class AdminMenu {
 
     private static String readValidRole(Scanner scanner) {
         while (true) {
-            System.out.print("Enter valid role (e.g., System Admin, Rental Desk Clerk, Inventory Auditor): ");
+            System.out.print("Enter new role (System Admin, Rental Desk Clerk, Inventory Auditor) [0 to cancel]: ");
             String role = scanner.nextLine().trim();
+            if (role.equals("0")) return null;
+
             if (!role.isEmpty()) {
                 return role.toUpperCase();
             }
@@ -181,50 +70,164 @@ public class AdminMenu {
 
     private static String readValidStatus(Scanner scanner) {
         while (true) {
-            System.out.print("Enter valid status (APPROVED, PENDING): ");
-            String status = scanner.nextLine().trim().toUpperCase();
-            if (status.equals("APPROVED") || status.equals("PENDING")) {
-                return status;
+            System.out.print("Enter new status (APPROVED / PENDING) [0 to cancel]: ");
+            String status = scanner.nextLine().trim();
+            if (status.equals("0")) return null;
+
+            if (status.equalsIgnoreCase("APPROVED") || status.equalsIgnoreCase("PENDING")) {
+                return status.toUpperCase();
             }
-            System.out.println("Invalid status. Only APPROVED or PENDING are accepted.");
+            System.out.println("Invalid status. Please enter APPROVED or PENDING.");
         }
     }
 
-    private static void printUserTable(String title, List<user> userList) {
-        System.out.println("\n--- " + title + " ---");
-        if (userList.isEmpty()) {
-            System.out.println("No records found.");
-            return;
-        }
-
-        String border = "+-------+-----------------+-----------------------+------------+";
-        System.out.println(border);
-        System.out.printf("| %-5s | %-15s | %-20s | %-10s |\n", "ID", "Username", "Role", "Status");
-        System.out.println(border);
-
-        for (user u : userList) {
-            System.out.printf("| %-5d | %-15s | %-20s | %-10s |\n",
+    private static void displayAllUsers(UserDao userDao) {
+        List<user> users = userDao.getAllUsers();
+        System.out.println("\n==================================================================");
+        System.out.println("====================== ALL SYSTEM USERS ==========================");
+        System.out.println("==================================================================");
+        System.out.printf("%-5s | %-20s | %-25s | %-10s%n", "ID", "Username", "Role", "Status");
+        System.out.println("------------------------------------------------------------------");
+        for (user u : users) {
+            System.out.printf("%-5d | %-20s | %-25s | %-10s%n",
                     u.user_id(), u.username(), u.role(), u.status());
         }
-        System.out.println(border);
+        System.out.println("------------------------------------------------------------------");
     }
 
-    private static void printLogTable(String title, List<ActivityLog> logList) {
-        System.out.println("\n--- " + title + " ---");
-        if (logList.isEmpty()) {
-            System.out.println("No records found.");
+    private static void displayPendingUsers(UserDao userDao) {
+        List<user> users = userDao.getPendingUsers();
+        System.out.println("\n------------------------------------------------------------------");
+        System.out.println("------------------------- PENDING USERS --------------------------");
+        System.out.println("------------------------------------------------------------------");
+        if (users.isEmpty()) {
+            System.out.println("No pending users found.");
+            System.out.println("------------------------------------------------------------------");
+            return;
+        }
+        System.out.printf("%-5s | %-20s | %-25s | %-10s%n", "No.", "Username", "Role", "Status");
+        System.out.println("------------------------------------------------------------------");
+        int displayNo = 1;
+        for (user u : users) {
+            System.out.printf("%-5d | %-20s | %-25s | %-10s%n",
+                    displayNo++, u.username(), u.role(), u.status());
+        }
+        System.out.println("------------------------------------------------------------------");
+    }
+
+    private static void handleApproveUser(user currentAdmin, UserDao userDao, Scanner scanner) {
+        List<user> pending = userDao.getPendingUsers();
+        System.out.println("\n------------------------------------------------------------------");
+        System.out.println("------------------------- PENDING USERS --------------------------");
+        System.out.println("------------------------------------------------------------------");
+        if (pending.isEmpty()) {
+            System.out.println("No pending users found.");
+            System.out.println("------------------------------------------------------------------");
             return;
         }
 
-        String border = "+-------+----------+--------------------+-------------------------------------+---------------------+";
-        System.out.println(border);
-        System.out.printf("| %-5s | %-8s | %-18s | %-35s | %-19s |\n", "ID", "User ID", "Action Type", "Description", "Timestamp");
-        System.out.println(border);
-
-        for (ActivityLog log : logList) {
-            System.out.printf("| %-5d | %-8d | %-18s | %-35s | %-19s |\n",
-                    log.log_id(), log.user_id(), log.action_type(), log.description(), log.timestamp());
+        System.out.printf("%-5s | %-20s | %-25s | %-10s%n", "No.", "Username", "Role", "Status");
+        System.out.println("------------------------------------------------------------------");
+        int displayNo = 1;
+        for (user u : pending) {
+            System.out.printf("%-5d | %-20s | %-25s | %-10s%n",
+                    displayNo++, u.username(), u.role(), u.status());
         }
-        System.out.println(border);
+        System.out.println("------------------------------------------------------------------");
+
+        int selection = readIntInput(scanner, "Enter number to approve (or 0 to cancel): ");
+        if (selection == 0) return;
+
+        if (selection < 1 || selection > pending.size()) {
+            System.out.println("Invalid selection number.");
+            return;
+        }
+
+        user targetUser = pending.get(selection - 1);
+        boolean success = userDao.approveUser(currentAdmin.user_id(), targetUser.user_id());
+
+        if (success) {
+            System.out.println("User '" + targetUser.username() + "' successfully approved.");
+        } else {
+            System.out.println("Approval failed.");
+        }
+    }
+
+    private static void handleUpdateUser(user currentAdmin, UserDao userDao, Scanner scanner) {
+        displayAllUsers(userDao);
+
+        int targetUserId = readIntInput(scanner, "\nEnter User ID to update (or 0 to cancel): ");
+        if (targetUserId == 0) {
+            System.out.println("Update cancelled.");
+            return;
+        }
+
+        if (targetUserId == currentAdmin.user_id()) {
+            System.out.println("WARNING: Modifying the currently active admin account is restricted.");
+            return;
+        }
+
+        String newRole = readValidRole(scanner);
+        if (newRole == null) {
+            System.out.println("Update cancelled.");
+            return;
+        }
+
+        String newStatus = readValidStatus(scanner);
+        if (newStatus == null) {
+            System.out.println("Update cancelled.");
+            return;
+        }
+
+        boolean success = userDao.updateUserRoleAndStatus(currentAdmin.user_id(), targetUserId, newRole, newStatus);
+        if (success) {
+            System.out.println("User ID " + targetUserId + " updated successfully to Role: " + newRole + ", Status: " + newStatus);
+        } else {
+            System.out.println("Failed to update user. Please check if the User ID exists.");
+        }
+    }
+
+    private static void handleViewAuditLogsMenu(Scanner scanner) {
+        while (true) {
+            System.out.println("\n=================================");
+            System.out.println("=== AUDIT LOGS MANAGEMENT ===");
+            System.out.println("=================================");
+            System.out.println("1. View All System Logs");
+            System.out.println("2. Filter Logs by User ID");
+            System.out.println("3. Back to Admin Menu");
+            System.out.print("Choose an option: ");
+
+            int choice = readIntInput(scanner, "");
+            switch (choice) {
+                case 1 -> displayAuditLogs(activityLogDao.getAllLogs());
+                case 2 -> {
+                    int filterUserId = readIntInput(scanner, "Enter User ID to filter by: ");
+                    displayAuditLogs(activityLogDao.getLogsByUserId(filterUserId));
+                }
+                case 3 -> {
+                    return;
+                }
+                default -> System.out.println("Invalid choice. Please choose between 1 and 3.");
+            }
+        }
+    }
+
+    private static void displayAuditLogs(List<ActivityLog> logs) {
+        System.out.println("\n=======================================================================================================================");
+        System.out.println("================================================ SYSTEM AUDIT LOGS ====================================================");
+        System.out.println("=======================================================================================================================");
+        System.out.printf("%-5s | %-8s | %-18s | %-55s | %-20s%n", "ID", "User ID", "Action Type", "Description", "Timestamp");
+        System.out.println("-----------------------------------------------------------------------------------------------------------------------");
+        if (logs.isEmpty()) {
+            System.out.println("No audit logs found.");
+        } else {
+            for (ActivityLog log : logs) {
+                System.out.printf("%-5s | %-8s | %-18s | %-55s | %-20s%n",
+                        log.log_id(), log.user_id(), log.action_type(), log.description(), log.timestamp());
+            }
+        }
+        System.out.println("-----------------------------------------------------------------------------------------------------------------------");
+        System.out.println("Total Audit Logs Recorded: " + logs.size());
+        System.out.println("=======================================================================================================================");
     }
 }

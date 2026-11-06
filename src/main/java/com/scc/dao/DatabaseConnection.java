@@ -10,9 +10,13 @@ public class DatabaseConnection {
 
     public static Connection getConnection() throws SQLException {
         Connection conn = DriverManager.getConnection(DB_URL);
-        // Enable SQLite Foreign Key constraints on every connection initialization
         try (Statement stmt = conn.createStatement()) {
+            // Set busy timeout to 3000ms to wait if database is busy
+            stmt.execute("PRAGMA busy_timeout = 3000;");
+            // Enable Foreign Keys
             stmt.execute("PRAGMA foreign_keys = ON;");
+            // Enable Write-Ahead Logging to prevent lock errors
+            stmt.execute("PRAGMA journal_mode = WAL;");
         }
         return conn;
     }

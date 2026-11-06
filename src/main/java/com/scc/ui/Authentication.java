@@ -81,7 +81,7 @@ public class Authentication {
         boolean success = userDaoObj.registerUser(username, password, role);
         if (success) {
             if ("System Admin".equalsIgnoreCase(role)) {
-                System.out.println("Registration successful! System Admin account is  APPROVED.");
+                System.out.println("Registration successful! System Admin account is APPROVED.");
             } else {
                 System.out.println("Registration successful! Account status is PENDING approval.");
             }
@@ -120,7 +120,13 @@ public class Authentication {
             return;
         }
 
-        // Default session dashboard for non-admin roles
+        // Route Rental Desk Clerk directly into their comprehensive CRUD dashboard
+        if ("Rental Desk Clerk".equalsIgnoreCase(u.role()) || "RENTAL DESK CLERK".equalsIgnoreCase(u.role())) {
+            RentalDeskClerkMenu.displayClerkMenu(u, scanner);
+            return;
+        }
+
+        // Default session dashboard for other roles (e.g., Inventory Auditor)
         while (true) {
             System.out.println("\n--- USER DASHBOARD (" + u.role() + ") ---");
             System.out.println("[1] View Profile Info");
