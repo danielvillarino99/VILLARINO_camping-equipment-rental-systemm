@@ -6,23 +6,31 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class UserDao {
+    private final ActivityLogDao logDao = new ActivityLogDao();
 
     public boolean registerUser(String username, String password, String role) {
-        // Automatically approve System Admin upon registration; others remain PENDING
         String status = "System Admin".equalsIgnoreCase(role) ? "APPROVED" : "PENDING";
-
         String sql = "INSERT INTO users(username, password_hash, role, status) VALUES(?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setString(1, username);
             pstmt.setString(2, password);
             pstmt.setString(3, role);
             pstmt.setString(4, status);
-            return pstmt.executeUpdate() > 0;
+            int affected = pstmt.executeUpdate();
+            if (affected > 0) {
+                try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        int newUserId = rs.getInt(1);
+                        logDao.logAction(newUserId, "USER_REGISTERED", "User registered with role: " + role);
+                    }
+                }
+                return true;
+            }
         } catch (SQLException e) {
             System.out.println("Registration DB Error: " + e.getMessage());
-            return false;
         }
+        return false;
     }
 
     public user loginUser(String username, String password) {
@@ -33,13 +41,15 @@ public class UserDao {
             pstmt.setString(2, password);
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
-                    return new user(
+                    user u = new user(
                             rs.getInt("user_id"),
                             rs.getString("username"),
                             rs.getString("password_hash"),
                             rs.getString("role"),
                             rs.getString("status")
                     );
+                    logDao.logAction(u.user_id(), "USER_LOGIN", "User logged in successfully.");
+                    return u;
                 }
             }
         } catch (SQLException e) {
@@ -90,29 +100,37 @@ public class UserDao {
         return pendingList;
     }
 
-    public boolean approveUser(int userId) {
+    public boolean approveUser(int adminId, int userId) {
         String sql = "UPDATE users SET status = 'APPROVED' WHERE user_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, userId);
-            return pstmt.executeUpdate() > 0;
+            int affected = pstmt.executeUpdate();
+            if (affected > 0) {
+                logDao.logAction(adminId, "USER_APPROVED", "Admin ID " + adminId + " approved account for User ID " + userId);
+                return true;
+            }
         } catch (SQLException e) {
             System.out.println("Error approving user: " + e.getMessage());
-            return false;
         }
+        return false;
     }
 
-    public boolean updateUserRoleAndStatus(int userId, String newRole, String newStatus) {
+    public boolean updateUserRoleAndStatus(int adminId, int userId, String newRole, String newStatus) {
         String sql = "UPDATE users SET role = ?, status = ? WHERE user_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, newRole.toUpperCase());
             pstmt.setString(2, newStatus.toUpperCase());
             pstmt.setInt(3, userId);
-            return pstmt.executeUpdate() > 0;
+            int affected = pstmt.executeUpdate();
+            if (affected > 0) {
+                logDao.logAction(adminId, "USER_UPDATED", "Admin ID " + adminId + " changed role/status of User ID " + userId + " to Role: " + newRole + ", Status: " + newStatus);
+                return true;
+            }
         } catch (SQLException e) {
             System.out.println("Error updating user role and status: " + e.getMessage());
-            return false;
         }
+        return false;
     }
 }

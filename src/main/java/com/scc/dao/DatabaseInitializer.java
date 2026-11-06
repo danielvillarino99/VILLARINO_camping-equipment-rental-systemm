@@ -16,12 +16,22 @@ public class DatabaseInitializer {
             );
         """;
 
+        String createActivityLogsTable = """
+            CREATE TABLE IF NOT EXISTS activity_logs (
+                log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                action_type TEXT NOT NULL,
+                description TEXT NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(user_id)
+            );
+        """;
+
         try (Connection conn = DatabaseConnection.getConnection();
              Statement stmt = conn.createStatement()) {
-            // Enable SQLite Foreign Key constraints on initialization
             stmt.execute("PRAGMA foreign_keys = ON;");
-            // Create the users table if it doesn't already exist
             stmt.execute(createUsersTable);
+            stmt.execute(createActivityLogsTable);
             System.out.println("Database and tables initialized successfully.");
         } catch (SQLException e) {
             System.out.println("Table initialization error: " + e.getMessage());
